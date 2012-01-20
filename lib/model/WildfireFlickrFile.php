@@ -1,0 +1,5 @@
+<?
+class WildfireFlickrFile extends WildfireDiskFile{
+
+}
+?>
