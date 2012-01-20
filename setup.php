@@ -1,0 +1,3 @@
+<?
+WildfireMedia::$classes[] = 'WildfireFlickrFile';
+?>
