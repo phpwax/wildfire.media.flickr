@@ -10,15 +10,19 @@ class WildfireFlickrFile{
   public $singular = array('galleries'=>'gallery',
                             'photosets'=>'photoset');
   public $fetch = array('galleries'=>"flickr.galleries.getPhotos",
-                        "photosets"=>"flickr.photosets.getPhotos");
+                        "photosets"=>"flickr.photosets.getPhotos",
+                        "photo"=>"flickr.photos.getInfo",
+                        'sizes'=>'flickr.photos.getSizes'
+                        );
   /**
-   * no uploads to flickr yet
+   * no uploads to flickr ... yet
    **/
   public function set($media_item){
     return false;
   }
   //should return a url to display the image
   public function get($media_item, $size=false){
+    //if($media_item)
     return "";
   }
 
@@ -28,7 +32,9 @@ class WildfireFlickrFile{
   }
   //generates the tag to be displayed - return generic icon if not an image
   public function render($media_item, $size, $title="preview"){
-    return "";
+    //fetch size infomation
+    $url = $this->api_base."?method=".$this->fetch['sizes']."&photo_id=".$media_item->source."&nojsoncallback=1&format=json&api_key=".Config::get("flickr/key")."&per_page=500&user_id=".Config::get("flickr/user_id");
+    echo $url;exit;
   }
 
   /**
@@ -57,10 +63,37 @@ class WildfireFlickrFile{
     $url = $this->api_base . "?".$type."=".$id."&method=".$service."&nojsoncallback=1&format=json&api_key=".Config::get("flickr/key")."&per_page=500&user_id=".Config::get("flickr/user_id");
     $curl = new WaxBackgroundCurl(array('url'=>$url));
     $data = json_decode($curl->fetch());
-    if($data->total){
-      foreach($data->photo as $pic){
 
+    $class = get_class($this);
+    if($data->$single->total){
+      $ids = array();
+      foreach($data->$single->photo as $pic){
+        $source = $pic->id;
+        $model = new WildfireMedia;
+        $info_url = $this->api_base."?method=".$this->fetch['photo']."&photo_id=$source&nojsoncallback=1&format=json&api_key=".Config::get("flickr/key")."&per_page=500&user_id=".Config::get("flickr/user_id");
+        $ncurl = new WaxBackgroundCurl(array('url'=>$info_url));
+        $pic_info = json_decode($ncurl->fetch());
+        if($found = $model->filter("media_class", $class)->filter("source", $pic->id)->first()) $found->update_attributes(array('status'=>1));
+        else $found = $model->update_attributes(array('source'=>$source,
+                                                  'uploaded_location'=>str_replace(Config::get("flickr/user_id"), "@USER@", str_replace(Config::get("flickr/key"), "@KEY@", $info_url)),
+                                                  'status'=>1,
+                                                  'media_class'=>$class,
+                                                  'media_type'=>self::$name,
+                                                  'ext'=>$pic_info->photo->originalformat,
+                                                  'file_type'=>($pic_info->photo->media == "photo") ? "image/".$pic_info->photo->originalformat : "video",
+                                                  'title'=>$pic->title,
+                                                  'hash'=> $pic->secret,
+                                                  'sync_location'=>$location
+                                                  ));
+
+        $ids[] = $found->primval;
+        $info[] = $found;
       }
+
+      $media = new WildfireMedia;
+      foreach($ids as $id) $media->filter("id", $id, "!=");
+      foreach($media->filter("status", 1)->filter("media_class", $class)->filter("sync_location", $location)->all() as $missing) $missing->update_attributes(array('status'=>-1));
+
     }
     return $info;
   }
