@@ -1,3 +1,4 @@
+
 <?
 class WildfireFlickrFile{
 
@@ -8,7 +9,8 @@ class WildfireFlickrFile{
                           "photosets"=>"flickr.photosets.getList");
 
   public $singular = array('galleries'=>'gallery',
-                            'photosets'=>'photoset');
+                          'photosets'=>'photoset',
+                          'sizes'=>'size');
   public $fetch = array('galleries'=>"flickr.galleries.getPhotos",
                         "photosets"=>"flickr.photosets.getPhotos",
                         "photo"=>"flickr.photos.getInfo",
@@ -21,20 +23,61 @@ class WildfireFlickrFile{
     return false;
   }
   //should return a url to display the image
-  public function get($media_item, $size=false){
-    //if($media_item)
+  public function get($media_item, $width=false, $return_obj = false){
+    //fetch the size details for the item
+    $url = $this->api_base . "?photo_id=".$media_item->source."&method=".$this->fetch['sizes']."&nojsoncallback=1&format=json&api_key=".Config::get("flickr/key")."&per_page=500&user_id=".Config::get("flickr/user_id");
+    $curl = new WaxBackgroundCurl(array('url'=>$url));
+    $obj = json_decode($curl->fetch());
+
+    if($media_item->file_type == "video"){
+      $compare = array('param'=>"label", 'value'=>'Video Player');
+      $var = "source";
+    }
+    else{
+      $compare = array('param'=>'media', 'value'=>"photo");
+      $var = "source";
+    }
+
+    if($sizes = $obj->sizes->size){
+      $index = $difference = false;
+      $diff = 99999;
+      foreach($sizes as $i => $s){
+        $diff = abs($width - $s->width);
+        if((!$difference || ($diff < $difference)) && $s->{$compare['param']} == $compare['value']){
+          $difference = $diff;
+          $index = $i;
+        }
+      }
+      //depending on the param, either return the array of just the source
+      if($index !== false && $return_obj) return $sizes[$index];
+      elseif($index !== false) return $sizes[$index]->$var;
+    }
     return "";
   }
 
   //this will actually render the contents of the image
   public function show($media_item, $size=false){
-    return "";
+    $data = $this->get($media_item, $size, true);
+    if($media_item->file_type == "video") header("Location: ".$data['source']);
+    else{
+
+    }
   }
   //generates the tag to be displayed - return generic icon if not an image
   public function render($media_item, $size, $title="preview"){
-    //fetch size infomation
-    $url = $this->api_base."?method=".$this->fetch['sizes']."&photo_id=".$media_item->source."&nojsoncallback=1&format=json&api_key=".Config::get("flickr/key")."&per_page=500&user_id=".Config::get("flickr/user_id");
-    echo $url;exit;
+    $url = $this->get($media_item, $size);
+    if($media_item->file_type == "video"){
+      //need to refetch the data to find the original size
+      $data = $this->get($media_item, $size, true);
+      //flickrs embedd code template
+      $template = '<object type="application/x-shockwave-flash" width="-WIDTH-" height="-HEIGHT-" data="http://www.flickr.com/apps/video/stewart.swf?v=109786" classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000"><param name="flashvars" value="intl_lang=en-us&photo_secret=-SECRET-&photo_id=-PHOTO_ID-" ></param><param name="movie" value="http://www.flickr.com/apps/video/stewart.swf?v=109786"></param><param name="bgcolor" value="#000000"></param><param name="allowFullScreen" value="true"></param><embed type="application/x-shockwave-flash" src="http://www.flickr.com/apps/video/stewart.swf?v=109786" bgcolor="#000000" allowfullscreen="true" flashvars="intl_lang=en-us&photo_secret=-SECRET-&photo_id=-PHOTO_ID-" height="-HEIGHT-" width="-WIDTH-"></embed></object>';
+      //work out the new height
+      $h = ($data->height / ($data->width/$size));
+      return str_replace("-PHOTO_ID-", $media_item->source, str_replace("-SECRET-", $media_item->hash, str_replace("-WIDTH-", $size, str_replace("-HEIGHT-", $h, $template))));
+    }else{
+      return "<img src='".$url."' alt='".$title."' class='flickr' width='".$size."'>";
+    }
+
   }
 
   /**
