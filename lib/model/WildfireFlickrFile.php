@@ -41,6 +41,7 @@ class WildfireFlickrFile{
     if($sizes = $obj->sizes->size){
       $index = $difference = false;
       $diff = 99999;
+      if($width == false) $width = 9999;
       foreach($sizes as $i => $s){
         $diff = abs($width - $s->width);
         if((!$difference || ($diff < $difference)) && $s->{$compare['param']} == $compare['value']){
