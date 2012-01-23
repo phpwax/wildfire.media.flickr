@@ -99,11 +99,24 @@ class WildfireFlickrFile{
 
   public function sync($location){
     $info = array();
+
     list($service_key, $id) = explode("@", $location);
     $service = $this->fetch[$service_key];
     $single = $this->singular[$service_key];
     $type = $single."_id";
+
+    //find the photoset name
+    $method = "flickr.photosets.getInfo";
+    $set_url = $this->api_base . "?".$type."=".$id."&method=".$method."&nojsoncallback=1&format=json&api_key=".Config::get("flickr/key")."&per_page=500&user_id=".Config::get("flickr/user_id");
+    $curl = new WaxBackgroundCurl(array('url'=>$set_url));
+    $set_data = json_decode($curl->fetch());
+    $cat = new WildfireCategory;
+    //find the category based on the photoset
+    if(($name = $set_data->photoset->title->_content) && (!$found_cat = $cat->filter("title", $name)->first())) $found_cat = $cat->update_attributes(array('title'=>$name));
+
+
     $url = $this->api_base . "?".$type."=".$id."&method=".$service."&nojsoncallback=1&format=json&api_key=".Config::get("flickr/key")."&per_page=500&user_id=".Config::get("flickr/user_id");
+
     $curl = new WaxBackgroundCurl(array('url'=>$url));
     $data = json_decode($curl->fetch());
 
@@ -131,6 +144,8 @@ class WildfireFlickrFile{
 
         $ids[] = $found->primval;
         $info[] = $found;
+        //join
+        $found->categories = $found_cat;
       }
 
       $media = new WildfireMedia;
