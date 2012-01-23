@@ -59,8 +59,7 @@ class WildfireFlickrFile{
   //this will actually render the contents of the image
   public function show($media_item, $size=false){
     $data = $this->get($media_item, $size, true);
-    if($media_item->file_type == "video") header("Location: ".$data['source']);
-    else{
+    header("Location: ".$data['source']);
 
     }
   }
