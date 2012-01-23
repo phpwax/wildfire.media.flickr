@@ -128,24 +128,34 @@ class WildfireFlickrFile{
         $model = new WildfireMedia;
         $info_url = $this->api_base."?method=".$this->fetch['photo']."&photo_id=$source&nojsoncallback=1&format=json&api_key=".Config::get("flickr/key")."&per_page=500&user_id=".Config::get("flickr/user_id");
         $ncurl = new WaxBackgroundCurl(array('url'=>$info_url));
-        $pic_info = json_decode($ncurl->fetch());
-        if($found = $model->filter("media_class", $class)->filter("source", $pic->id)->first()) $found->update_attributes(array('status'=>1));
-        else $found = $model->update_attributes(array('source'=>$source,
-                                                  'uploaded_location'=>str_replace(Config::get("flickr/user_id"), "@USER@", str_replace(Config::get("flickr/key"), "@KEY@", $info_url)),
-                                                  'status'=>1,
-                                                  'media_class'=>$class,
-                                                  'media_type'=>self::$name,
-                                                  'ext'=>$pic_info->photo->originalformat,
-                                                  'file_type'=>($pic_info->photo->media == "photo") ? "image/".$pic_info->photo->originalformat : "video",
-                                                  'title'=>$pic->title,
-                                                  'hash'=> $pic->secret,
-                                                  'sync_location'=>$location
-                                                  ));
+        if($pic_info = json_decode($ncurl->fetch())){
 
-        $ids[] = $found->primval;
-        $info[] = $found;
-        //join
-        $found->categories = $found_cat;
+          if($found = $model->filter("media_class", $class)->filter("source", $pic->id)->first()) $found->update_attributes(array('status'=>1));
+          else $found = $model->update_attributes(array('source'=>$source,
+                                                    'uploaded_location'=>str_replace(Config::get("flickr/user_id"), "@USER@", str_replace(Config::get("flickr/key"), "@KEY@", $info_url)),
+                                                    'status'=>1,
+                                                    'media_class'=>$class,
+                                                    'media_type'=>self::$name,
+                                                    'ext'=>$pic_info->photo->originalformat,
+                                                    'file_type'=>($pic_info->photo->media == "photo") ? "image/".$pic_info->photo->originalformat : "video",
+                                                    'title'=>$pic->title,
+                                                    'hash'=> $pic->secret,
+                                                    'sync_location'=>$location
+                                                    ));
+
+          $ids[] = $found->primval;
+          $info[] = $found;
+          //join
+          $found->categories = $found_cat;
+          //tags -> categories
+          foreach((array) $pic_info->photo->tags->tag as $tag){
+            $model = new WildfireCategory;
+            if(($tag = trim($tag->_content)) && $tag){
+              if($cat = $model->filter("title", $tag)->first()) $found->categories = $cat;
+              else $found->categories = $model->update_attributes(array('title'=>$tag));
+            }
+          }
+        }
       }
 
       $media = new WildfireMedia;
