@@ -6,11 +6,12 @@ class WildfireFlickrFile{
   public static $name = "Flickr";
   public $api_base = "http://www.flickr.com/services/rest/";
   public $lookups = array('galleries'=>"flickr.galleries.getList",
-                          "photosets"=>"flickr.photosets.getList");
+                          "photosets"=>"flickr.photosets.getList"
+                          );
 
-  public $singular = array('galleries'=>'gallery',
-                          'photosets'=>'photoset',
-                          'sizes'=>'size');
+  public $singular = array( 'galleries'=>'gallery',
+                            'photosets'=>'photoset',
+                            'sizes'=>'size');
   public $fetch = array('galleries'=>"flickr.galleries.getPhotos",
                         "photosets"=>"flickr.photosets.getPhotos",
                         "photo"=>"flickr.photos.getInfo",
@@ -61,7 +62,6 @@ class WildfireFlickrFile{
     $data = $this->get($media_item, $size, true);
     header("Location: ".$data['source']);
 
-    }
   }
   //generates the tag to be displayed - return generic icon if not an image
   public function render($media_item, $size, $title="preview"){
