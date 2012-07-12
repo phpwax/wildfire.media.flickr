@@ -1,4 +1,3 @@
-
 <?
 class WildfireFlickrFile{
 
@@ -64,7 +63,7 @@ class WildfireFlickrFile{
 
   }
   //generates the tag to be displayed - return generic icon if not an image
-  public function render($media_item, $size, $title="preview"){
+  public function render($media_item, $size, $title="preview", $class="attached_flickr"){
     $url = $this->get($media_item, $size);
     if($media_item->file_type == "video"){
       //need to refetch the data to find the original size
